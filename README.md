@@ -1,14 +1,17 @@
 /*-------|---------|---------|---------|---------|---------|---------|---------|
-brewtroller.c	
+etimer.c	
 
-a simple temperature/boil controller for brewing or sous vide
+enlarger timer 
 
 by chaz miller 2013
 
-Controller has 2 knobs, temperature setpoint and duty cycle.
-With no temp probe, it acts as an open-loop 0-100% boil controller.
-With temp probe connected it acts as a simple heat-only thermostat.
-The duty cycle adjustment is still applied even in temp control mode. 
+Controller is a 2-channel so basically two controllers in one.
+
+Each has two knobs, A0 and A1 and B0 and B1 for setting time, button A2
+and B2 for starting the timer, and button A3 and B3 for resetting
+
+Additionally there are outputs A4 and A5 for driving panel meters
+
 
 HARDWARE:
 for ATMEGAxx8 set at 1MHz. 
