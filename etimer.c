@@ -15,6 +15,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ******************************************************************/
 
 #include <avr/io.h>
+#define timer_off TCCR12&=(1<<CS12|1<<CS11|1<<CS10) 
+#define timer_on  TCCR12|=(1<<CS11) 
 
 void delay(uint16_t);
 void blink (uint8_t);
@@ -34,11 +36,19 @@ int main(){
     for(;;){  
         //read ADCs
         //compute timer blob(s)
-        if(runflag){
-            //start timer
-            //set outputs
+        //poll start button
+        if((!runflag)&&(!start)){
+            //nothing
         }
-        //set flag if running
+        if((!runflag)&&(start)){
+            //start timer
+        }
+        if(runflag&&(!start)){
+            //nothing
+        }
+        if(runflag&&start){
+            //stop timer
+        }
    } //infty
 }//main
 void adc_init(void){
