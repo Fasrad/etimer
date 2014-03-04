@@ -17,6 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #include <avr/io.h>
 #define timer_off TCCR12&=(1<<CS12|1<<CS11|1<<CS10) 
 #define timer_on  TCCR12|=(1<<CS11) 
+#define start PORTB&(1<<2)
 
 void delay(uint16_t);
 void blink (uint8_t);
@@ -34,20 +35,40 @@ int main(){
     *****main loop***************************
     ****************************************/
     for(;;){  
-        //read ADCs
-        //compute timer blob(s)
+
+        //poll cancel button
+        if(TCNT0>10){
+            if(cancel){
+                //bug: white light only updates if you press cancel
+                //read ADCs
+                baseA=adc_read(0);
+                fineA=adc_read(1);
+                baseB=adc_read(2);
+                fineB=adc_read(3);
+                white=adc_read(4);
+
+                //compute timer blob(s)
+                //pad base time to timer resolution 
+                //apply finitude
+                //load timer registers
+
+        }
         //poll start button
-        if((!runflag)&&(!start)){
-            //nothing
-        }
-        if((!runflag)&&(start)){
-            //start timer
-        }
-        if(runflag&&(!start)){
-            //nothing
-        }
-        if(runflag&&start){
-            //stop timer
+        if(TCNT0>10){
+            TCNT0=0;
+            //if((!runflag)&&(!start)){
+                //nothing
+            //}
+            if((!runflag)&&(start)){
+                start_timer;
+                runflag=1;
+            }
+            //if(runflag&&(!start)){
+                //nothing
+            if(runflag&&start){
+                stop_timer;
+                runflag=0;
+            }
         }
    } //infty
 }//main
