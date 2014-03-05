@@ -15,9 +15,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ******************************************************************/
 
 #include <avr/io.h>
-#define timer_off TCCR12&=(1<<CS12|1<<CS11|1<<CS10) 
-#define timer_on  TCCR12|=(1<<CS11) 
+#define stop_timer   TCCR12&=(1<<CS12|1<<CS11|1<<CS10);runflag=0; 
+#define start_timer  TCCR12|=(1<<CS11);runflag=1;
 #define start PORTB&(1<<2)
+#define debounce 10 
 
 void delay(uint16_t);
 void blink (uint8_t);
@@ -29,45 +30,49 @@ int main(){
     *****setup stuff*************************
     ****************************************/
     adc_init();
-    //setup timers and pwm
+    //16-bit timer1 for enlargeage
+    //8-bit timer0 for debounce
+    //8-bit time2 pwm for white light
+
+    uint8_t runflag; //flag
+    uint16_t base;   //course pot 
+    uint16_t fine;   //fine pot 
+    uint16_t ocr;    //timer OCR
 
     /****************************************
     *****main loop***************************
     ****************************************/
     for(;;){  
-
+        OCR2=adc_read(2)>>2;
         //poll cancel button
-        if(TCNT0>10){
-            if(cancel){
-                //bug: white light only updates if you press cancel
-                //read ADCs
-                baseA=adc_read(0);
-                fineA=adc_read(1);
-                baseB=adc_read(2);
-                fineB=adc_read(3);
-                white=adc_read(4);
+        if(!(cancel)){                     
+            if(TCNT0>debounce){               
+                TCNT0=0;
+                //read dials ADCs
+                base=adc_read(0); //0-1023 needs logified
+                //<< to subtract a stop from base
+                //add fine exposure; 0 on knob is really +1 stop 
+                fine=adc_read(1); //0-1023 needs logified; added somehow
 
                 //compute timer blob(s)
-                //pad base time to timer resolution 
-                //apply finitude
                 //load timer registers
 
+            }else{
+                TCNT0=0;
+            }
         }
         //poll start button
-        if(TCNT0>10){
-            TCNT0=0;
-            //if((!runflag)&&(!start)){
-                //nothing
-            //}
-            if((!runflag)&&(start)){
-                start_timer;
-                runflag=1;
-            }
-            //if(runflag&&(!start)){
-                //nothing
-            if(runflag&&start){
-                stop_timer;
-                runflag=0;
+        if(!(start)){
+            if(TCNT0>debounce){
+                TCNT0=0;
+                if(runflag){
+                    stop_timer;
+                }
+                else{
+                    start_timer;
+                }
+            }else{
+                TCNT0=0;
             }
         }
    } //infty
