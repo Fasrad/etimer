@@ -18,6 +18,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #define stop_timer   TCCR12&=(1<<CS12|1<<CS11|1<<CS10);runflag=0; 
 #define start_timer  TCCR12|=(1<<CS11);runflag=1;
 #define start PORTB&(1<<2)
+#define cancel PORTB&(1<<1)
 #define debounce 10 
 
 void delay(uint16_t);
@@ -32,10 +33,9 @@ int main(){
     adc_init();
     //16-bit timer1 for enlargeage
     //8-bit timer0 for debounce
-    //8-bit time2 pwm for white light
 
     uint8_t runflag; //flag
-    uint16_t base;   //course pot 
+    uint16_t course; //course pot 
     uint16_t fine;   //fine pot 
     uint16_t ocr;    //timer OCR
 
@@ -43,20 +43,15 @@ int main(){
     *****main loop***************************
     ****************************************/
     for(;;){  
-        OCR2=adc_read(2)>>2;
         //poll cancel button
         if(!(cancel)){                     
             if(TCNT0>debounce){               
                 TCNT0=0;
-                //read dials ADCs
-                base=adc_read(0); //0-1023 needs logified
-                //<< to subtract a stop from base
-                //add fine exposure; 0 on knob is really +1 stop 
-                fine=adc_read(1); //0-1023 needs logified; added somehow
-
-                //compute timer blob(s)
-                //load timer registers
-
+                course=adc_read(0);    //course dial: 8 stops 
+                fine=adc_read(1)>>2;   //fine dial: 2 stops hence '>>'
+                exp=knobify(course)+knobify(fine);  //knob LUT  mapping
+                OCR1B=expify(exp);                  //massive LUT of doom
+                TCNT1=0;
             }else{
                 TCNT0=0;
             }
@@ -95,26 +90,17 @@ uint16_t adc_read(uint8_t me){    //expects ADMUX register value
     }
     return (ad_bucket>>2); //12 bits oversampled
 }
+uint16_t knobify(uint16_t me){
+    //take knob value, return mapped exponential 
+    uint8_t knob_LUT[1024]{
+    }
+}
+uint16_t expify(uint16_t me){
+    //take exponent, return OCR value 
+    uint8_t ocr_LUT[16384]{
+    }
+}
 /*
-    //8 bit Timer 0 is used by delay().
-    TCCR0A = 0;                //standard timer mode (page 103)
-    TCCR0B = 2;                //fcpu / 1
-void delay(uint16_t me){    //at 1MHz, each unit is 2.55us. 1ms is 4units. 
-    while(me){
-	while(TCNT0 < 128){}
-	me--;
-	while(TCNT0 > 128){}
-    }
-}
-void blink (uint8_t me){
-    for (int i=0; i<me; i++){
-	PORTB |= (1<<5);
-	delay(200);
-	PORTB &= ~(1<<5);
-	delay(200);
-    }
-    delay(500);
-}
 Set a bit
  bit_fld |= (1 << n)
 
@@ -126,4 +112,3 @@ Toggle a bit
 
 Test a bit
  bit_fld & (1 << n)
-*/ 
