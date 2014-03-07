@@ -1,7 +1,7 @@
 /*-------|---------|---------|---------|---------|---------|---------|---------|
 etimer.c	
 
-enlarger timer with two channels 
+"f-stop" enlarger timer with exponential settings
 
 refer to etimer.pdf for hardware details
 
@@ -15,8 +15,11 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ******************************************************************/
 
 #include <avr/io.h>
-#define stop_timer   TCCR12&=(1<<CS12|1<<CS11|1<<CS10);runflag=0; 
-#define start_timer  TCCR12|=(1<<CS11);runflag=1;
+#include <avr/pgmspace.h>
+#include "./lut.h"
+
+#define start_timer  TCCR1|=(1<<CS11);runflag=1;
+#define stop_timer   TCCR1&=(1<<CS12|1<<CS11|1<<CS10);runflag=0; 
 #define start PORTB&(1<<2)
 #define cancel PORTB&(1<<1)
 #define debounce 10 
@@ -30,14 +33,17 @@ int main(){
     /****************************************
     *****setup stuff*************************
     ****************************************/
-    adc_init();
-    //16-bit timer1 for enlargeage
-    //8-bit timer0 for debounce
+    uint8_t runflag; 
 
-    uint8_t runflag; //flag
-    uint16_t course; //course pot 
-    uint16_t fine;   //fine pot 
-    uint16_t ocr;    //timer OCR
+    //8-bit timer2 for button debounce
+    TCCR2B = (1<<CS22)|(1<<CS21)|(1<<CS20);    //CPU/1024; 2Hz PWM
+
+    //16-bit Timer 1 set as output PWM on OC1B PB2 (Arduino pin 10) p.115
+    //noninverting phase correct, CTC-PWM hybrid mode p135 
+    TCCR1A = (1<<COM1B1)|(1<<WGM11)|(1<<WGM10); 
+    OCR1A = 0x0FF0;             //sets pwm TOP 
+
+    adc_init();
 
     /****************************************
     *****main loop***************************
@@ -45,21 +51,21 @@ int main(){
     for(;;){  
         //poll cancel button
         if(!(cancel)){                     
-            if(TCNT0>debounce){               
-                TCNT0=0;
-                course=adc_read(0);    //course dial: 8 stops 
-                fine=adc_read(1)>>2;   //fine dial: 2 stops hence '>>'
-                exp=knobify(course)+knobify(fine);  //knob LUT  mapping
-                OCR1B=expify(exp);                  //massive LUT of doom
+            if(TCNT2>debounce){               
+                TCNT2=0;
+                //fine dial is 2 stops not 8 hence '>>'
+                OCR1B=pgm_read_byte(
+                    &ocr_LUT[ adc_read(0) + adc_read(1)>>2 ]
+                );
                 TCNT1=0;
             }else{
-                TCNT0=0;
+                TCNT2=0;
             }
         }
         //poll start button
         if(!(start)){
-            if(TCNT0>debounce){
-                TCNT0=0;
+            if(TCNT2>debounce){
+                TCNT2=0;
                 if(runflag){
                     stop_timer;
                 }
@@ -67,7 +73,7 @@ int main(){
                     start_timer;
                 }
             }else{
-                TCNT0=0;
+                TCNT2=0;
             }
         }
    } //infty
@@ -79,26 +85,12 @@ void adc_init(void){
     //ADMUX |= (1<<ADLAR);           //left align for 8-bit operation
     ADCSRA |= (1<<ADEN); 
 }
-uint16_t adc_read(uint8_t me){    //expects ADMUX register value
-    uint16_t ad_bucket=0;
+uint16_t adc_read(uint8_t me){    //expects ADMUX register value; blocking
     ADMUX &= 0xF0;
     ADMUX |= me;
-    for (int i=0; i<16; i++){
 	ADCSRA |= (1<<ADSC); 
 	while(ADCSRA & (1<<ADSC)); 
-	ad_bucket += ADCW;
-    }
-    return (ad_bucket>>2); //12 bits oversampled
-}
-uint16_t knobify(uint16_t me){
-    //take knob value, return mapped exponential 
-    uint8_t knob_LUT[1024]{
-    }
-}
-uint16_t expify(uint16_t me){
-    //take exponent, return OCR value 
-    uint8_t ocr_LUT[16384]{
-    }
+	return ADCW;
 }
 /*
 Set a bit
@@ -112,3 +104,4 @@ Toggle a bit
 
 Test a bit
  bit_fld & (1 << n)
+ */
