@@ -24,8 +24,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #define cancel PORTB&(1<<1)
 #define debounce 10 
 
-void delay(uint16_t);
-void blink (uint8_t);
 void adc_init(void);
 uint16_t adc_read(uint8_t);
 
@@ -44,10 +42,9 @@ int main(){
 
     //16-bit Timer 1 set with normal port operation with OCR1A as TOP p135
     TCCR1A = (1<<WGM12); 
-    OCR1A = 0x0FF0;             //sets counter TOP 
+    OCR1A = 3906;             //sets counter TOP 
     //enable compare match interrupt 
     TIMSK1|=(1<<OCIE1A);
-
 
     adc_init();
 
@@ -58,15 +55,18 @@ int main(){
         //poll cancel button
         if(!(cancel)){                     
             if(TCNT2>debounce){               
-                TCNT2=0;
-                //fine dial is 2 stops not 8 hence '>>'
-                OCR1B=pgm_read_byte(
-                    &ocr_LUT[ adc_read(0) + adc_read(1)>>2 ]
-                );
+                stop_timer;
+                tbin=0;
                 TCNT1=0;
+                TCNT2=0;
             }else{
                 TCNT2=0;
             }
+        }
+        //check for timer completion
+        if(tbin>=timer_max){
+            stop_timer;
+            tbin=0;
         }
         //poll start button
         if(!(start)){
@@ -76,6 +76,10 @@ int main(){
                     stop_timer;
                 }
                 else{
+                    //fine dial is 2 stops not 8 hence '>>'
+                    timer_max=pgm_read_byte(
+                        &ocr_LUT[ adc_read(0) + adc_read(1)>>2 ]
+                    );
                     start_timer;
                 }
             }else{
