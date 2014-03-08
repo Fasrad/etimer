@@ -18,8 +18,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #include <avr/pgmspace.h>
 #include "./lut.h"
 
-#define start_timer  TCCR1|=(1<<CS11);runflag=1;
-#define stop_timer   TCCR1&=(1<<CS12|1<<CS11|1<<CS10);runflag=0; 
+#define start_timer  TCCR1B|=(1<<CS11)|(1<<CS10);runflag=1;
+#define stop_timer   TCCR1B&=~(1<<CS12|1<<CS11|1<<CS10);runflag=0; 
 #define start PORTB&(1<<2)
 #define cancel PORTB&(1<<1)
 #define debounce 10 
@@ -35,13 +35,19 @@ int main(){
     ****************************************/
     uint8_t runflag; 
 
+    //read multiplier switch ?
+
+    //play meter welcome routine ?
+
     //8-bit timer2 for button debounce
     TCCR2B = (1<<CS22)|(1<<CS21)|(1<<CS20);    //CPU/1024; 2Hz PWM
 
-    //16-bit Timer 1 set as output PWM on OC1B PB2 (Arduino pin 10) p.115
-    //noninverting phase correct, CTC-PWM hybrid mode p135 
-    TCCR1A = (1<<COM1B1)|(1<<WGM11)|(1<<WGM10); 
-    OCR1A = 0x0FF0;             //sets pwm TOP 
+    //16-bit Timer 1 set with normal port operation with OCR1A as TOP p135
+    TCCR1A = (1<<WGM12); 
+    OCR1A = 0x0FF0;             //sets counter TOP 
+    //enable compare match interrupt 
+    TIMSK1|=(1<<OCIE1A);
+
 
     adc_init();
 
